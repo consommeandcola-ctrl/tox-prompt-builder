@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>急性中毒プロンプトビルダー</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b7fe8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="中毒ビルダー">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #f0f4ff;
+  --surface: #ffffff;
+  --surface2: #eef1fb;
+  --border: #c9d4f0;
+  --accent: #5b7fe8;
+  --text: #2d3561;
+  --muted: #7a86b8;
+  --ok: #4cad6f;
+  --step-inactive: #c9d4f0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+.app { max-width: 640px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+h1 { font-size: 1.1rem; color: var(--accent); margin-bottom: 0.2rem; }
+.sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 1.25rem; }
+
+.disclaimer {
+  background: #fff8e1;
+  border-left: 4px solid #f9a825;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.75rem;
+  font-size: 0.78rem;
+  color: #5a4a00;
+  line-height: 1.6;
+}
+.disclaimer strong { display: block; margin-bottom: 0.25rem; font-size: 0.82rem; color: #3e3000; }
+
+/* Step header */
+.step-head {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+  background: var(--accent); color: #0d1117;
+}
+.step-num.done { background: var(--ok); }
+.step-title { font-size: 0.95rem; font-weight: 600; }
+.step-desc { font-size: 0.8rem; color: var(--muted); margin-top: 0.1rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Photos */
+.photos-grid {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem;
+}
+.thumb {
+  width: 90px; height: 68px; border-radius: 7px; overflow: hidden;
+  position: relative; border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb .del {
+  position: absolute; top: 3px; right: 3px;
+  background: rgba(0,0,0,0.72); border: none; border-radius: 50%;
+  color: #fff; width: 18px; height: 18px; font-size: 0.65rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.add-btn {
+  width: 90px; height: 68px; border-radius: 7px;
+  border: 2px dashed var(--border);
+  background: var(--surface2);
+  color: var(--muted); font-size: 1.4rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; transition: border-color 0.15s;
+  gap: 2px;
+}
+.add-btn span { font-size: 0.65rem; }
+.add-btn:hover { border-color: var(--accent); }
+.add-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.6rem 1.1rem; border-radius: 8px; border: none;
+  font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s, transform 0.08s;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-accent { background: var(--accent); color: #0d1117; }
+.btn-ok { background: var(--ok); color: #0d1117; }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-full { width: 100%; justify-content: center; }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+/* Output box */
+.out-box {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #c9d1d9;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Courier New', monospace;
+  margin-bottom: 0.6rem;
+}
+
+/* Paste area */
+textarea.paste-area {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0.7rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 110px;
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 0.6rem;
+}
+textarea.paste-area:focus { border-color: var(--accent); }
+
+/* Drug list */
+.drug-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.45rem;
+}
+.drug-name-text { flex: 1; font-size: 0.88rem; }
+.qty-input {
+  width: 72px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.88rem;
+  text-align: center;
+  outline: none;
+}
+.qty-input:focus { border-color: var(--accent); }
+.qty-label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.drug-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 0.2rem; }
+
+.add-manual { display: flex; gap: 0.45rem; margin-top: 0.5rem; }
+.add-manual input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  outline: none;
+}
+.add-manual input:focus { border-color: var(--accent); }
+
+/* Drum picker — 1駒表示 */
+.drum-wrap {
+  display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;
+}
+.drum-label { font-size: 0.82rem; color: var(--muted); }
+.drum-cols { display: flex; gap: 3px; }
+.drum-col {
+  width: 44px; height: 44px;
+  overflow-y: scroll; scroll-snap-type: y mandatory;
+  border: 2px solid var(--accent); border-radius: 8px;
+  background: var(--surface2); scrollbar-width: none;
+}
+.drum-col::-webkit-scrollbar { display: none; }
+.drum-item {
+  height: 44px; display: flex; align-items: center; justify-content: center;
+  scroll-snap-align: start;
+  font-size: 1.4rem; font-weight: 700; color: var(--text);
+  user-select: none;
+}
+.drum-item.ghost { color: transparent; pointer-events: none; }
+.drum-unit { font-size: 1rem; font-weight: 700; color: var(--text); }
+.drum-kg-display { font-size: 0.85rem; color: var(--muted); }
+
+/* Time inputs */
+.time-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.time-field label { font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+.time-row { display: flex; gap: 0.3rem; }
+.time-row input[type=datetime-local] {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); padding: 0.5rem 0.5rem;
+  font-size: 0.85rem; outline: none; min-width: 0;
+}
+.time-row input:focus { border-color: var(--accent); }
+.now-btn {
+  padding: 0 0.6rem; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--accent); font-size: 0.78rem;
+  cursor: pointer; white-space: nowrap; font-weight: 600;
+}
+.elapsed-bar {
+  font-size: 0.8rem; color: var(--accent); text-align: center;
+  padding: 0.3rem 0; display: none;
+}
+
+.copy-done { color: var(--ok); font-size: 0.78rem; margin-top: 0.35rem; display: none; }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 0.2rem 0 0.7rem; }
+
+
+.tag {
+  display: inline-block; font-size: 0.7rem; padding: 0.1rem 0.4rem;
+  border-radius: 4px; background: rgba(91,127,232,0.15); color: var(--accent);
+  margin-left: 0.3rem;
+}
+
+/* DB upload bar */
+.db-bar {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.6rem 0.85rem; margin-bottom: 1rem;
+  font-size: 0.82rem;
+}
+.db-status { color: var(--muted); flex: 1; }
+.db-status.loaded { color: var(--ok); }
+.db-upload-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 0.8rem;
+  cursor: pointer; white-space: nowrap; position: relative;
+}
+.db-upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Suggestion chip */
+.suggest-row {
+  display: flex; align-items: center; gap: 0.4rem;
+  margin-top: 0.3rem; flex-wrap: wrap;
+}
+.suggest-chip {
+  font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 4px;
+  background: rgba(227,179,65,0.15); color: #8a6200; border: 1px solid #e3b341;
+  cursor: pointer; transition: background 0.12s;
+}
+.suggest-chip:hover { background: rgba(227,179,65,0.35); }
+.suggest-label { font-size: 0.7rem; color: var(--muted); }
+
+/* Photo attach panel */
+.attach-panel {
+  display: none;
+  margin-top: 0.85rem;
+  background: #fffbea;
+  border: 2px solid #f0c040;
+  border-radius: 10px;
+  padding: 0.9rem;
+}
+.attach-panel.show { display: block; }
+.attach-title {
+  font-size: 0.82rem; font-weight: 700; color: #8a6200; margin-bottom: 0.6rem;
+}
+.attach-grid {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem;
+}
+.attach-item {
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+}
+.attach-item img {
+  width: 110px; height: 82px; object-fit: cover;
+  border-radius: 7px; border: 1px solid #e0c060;
+  cursor: grab;
+}
+.attach-item img:active { cursor: grabbing; opacity: 0.85; }
+.attach-item a {
+  font-size: 0.7rem; color: var(--accent); text-decoration: none;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0.15rem 0.45rem;
+}
+.attach-note {
+  font-size: 0.78rem; color: #8a6200; line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>💊 急性中毒プロンプトビルダー</h1>
+  <p class="sub">写真 → 薬剤リスト取得 → 錠数入力 → 解析プロンプト生成</p>
+
+  <div class="disclaimer">
+    <strong>⚠️ 免責事項</strong>
+    本アプリが生成するプロンプトへのAI回答は、あくまで診療の参考情報です。内容の正確性・最新性はAIモデルの性能に依存し、誤りや不足が生じる場合があります。<br>
+    実臨床における判断は、担当医師が自ら原著論文・添付文書・ガイドラインを確認・吟味したうえで行ってください。本アプリおよびAI回答を最終的な診療根拠として使用することはお控えください。
+  </div>
+
+  <!-- ══ STEP 1 ══ -->
+  <div class="step-head">
+    <div class="step-num" id="num1">1</div>
+    <div>
+      <div class="step-title">写真をアップロード → プロンプト① を生成</div>
+      <div class="step-desc">薬剤写真・お薬手帳・市販薬成分表など複数枚追加可。AIチャットに貼り付け + 写真を添付して送信。</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="photos-grid" id="grid">
+      <label class="add-btn">
+        <input type="file" accept="image/*" multiple onchange="addPhotos(this)">
+        <span>＋</span><span>写真追加</span>
+      </label>
+    </div>
+
+    <button class="btn btn-accent btn-full" onclick="genPrompt1()">
+      📋 プロンプト①を生成（薬剤名列挙用）
+    </button>
+    <div class="out-box" id="out1" style="display:none;margin-top:0.6rem;"></div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.5rem;" id="act1" style="display:none">
+      <button class="btn btn-ok btn-sm" onclick="copy('out1','ck1')">📋 プロンプトをコピー</button>
+    </div>
+    <div class="copy-done" id="ck1">コピーしました</div>
+
+    <!-- 写真添付リマインダー -->
+    <div class="attach-panel" id="attachPanel">
+      <div class="attach-title">⚠️ 写真は自動でコピーされません — 以下の写真をAIチャットに添付してください</div>
+      <div class="attach-grid" id="attachGrid"></div>
+      <div class="attach-note">
+        📌 <strong>PC:</strong> 画像をドラッグしてAIチャットのテキスト入力欄に直接ドロップ<br>
+        📌 <strong>スマホ:</strong> 「↓ダウンロード」で保存 → AIチャットの添付ボタンから選択<br>
+        📌 プロンプトのテキストと写真をセットで送信してください
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 2 ══ -->
+  <div class="step-head">
+    <div class="step-num" id="num2">2</div>
+    <div>
+      <div class="step-title">AIの回答を貼り付け → 薬剤を抽出</div>
+      <div class="step-desc">AIが返した薬剤リストのテキストをそのまま貼り付けてください。</div>
+    </div>
+  </div>
+  <div class="card">
+    <textarea class="paste-area" id="pasteArea" placeholder="ここにAIの回答テキストを貼り付け…&#10;&#10;例：&#10;1. パロキセチン錠 20mg（パキシル）&#10;2. ロラゼパム錠 1mg（ワイパックス）&#10;3. アセトアミノフェン錠 500mg"></textarea>
+    <button class="btn btn-accent btn-full" onclick="parseDrugs()">
+      → 薬剤を抽出して一覧表示
+    </button>
+
+    <div id="drugSection" style="display:none;margin-top:0.85rem;">
+      <hr class="divider">
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.5rem;">各薬剤の内服錠数を入力（不明は空白でも可）</div>
+      <div id="drugList"></div>
+      <div class="add-manual">
+        <input type="text" id="manualName" placeholder="薬剤を手動追加…">
+        <button class="btn btn-ghost btn-sm" onclick="addManual()">追加</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ STEP 3 ══ -->
+  <div class="step-head">
+    <div class="step-num" id="num3">3</div>
+    <div>
+      <div class="step-title">プロンプト② を生成（中毒解析用）</div>
+      <div class="step-desc">体重を設定して詳細な中毒解析プロンプトを出力。</div>
+    </div>
+  </div>
+  <div class="card">
+    <!-- 体重ドラムピッカー -->
+    <div class="drum-wrap">
+      <span class="drum-label">傷病者体重</span>
+      <div class="drum-cols">
+        <div class="drum-col" id="drumHundreds" onscroll="onDrumScroll('hundreds')">
+          <div class="drum-item">0</div>
+          <div class="drum-item">1</div>
+          <div class="drum-item">2</div>
+        </div>
+        <div class="drum-col" id="drumTens" onscroll="onDrumScroll('tens')">
+          <div class="drum-item">0</div>
+          <div class="drum-item">1</div>
+          <div class="drum-item">2</div>
+          <div class="drum-item">3</div>
+          <div class="drum-item">4</div>
+          <div class="drum-item">5</div>
+          <div class="drum-item">6</div>
+          <div class="drum-item">7</div>
+          <div class="drum-item">8</div>
+          <div class="drum-item">9</div>
+        </div>
+        <div class="drum-col" id="drumOnes" onscroll="onDrumScroll('ones')">
+          <div class="drum-item">0</div>
+          <div class="drum-item">1</div>
+          <div class="drum-item">2</div>
+          <div class="drum-item">3</div>
+          <div class="drum-item">4</div>
+          <div class="drum-item">5</div>
+          <div class="drum-item">6</div>
+          <div class="drum-item">7</div>
+          <div class="drum-item">8</div>
+          <div class="drum-item">9</div>
+        </div>
+      </div>
+      <span class="drum-unit">kg</span>
+      <span class="drum-kg-display" id="drumDisplay">= 50 kg</span>
+    </div>
+
+    <div class="time-grid">
+      <div class="time-field">
+        <label>内服日時</label>
+        <div class="time-row">
+          <input type="datetime-local" id="ingestTime" oninput="updateElapsed()">
+          <button class="now-btn" onclick="setNow('ingestTime')">今</button>
+        </div>
+      </div>
+      <div class="time-field">
+        <label>病着日時</label>
+        <div class="time-row">
+          <input type="datetime-local" id="arrivalTime" oninput="updateElapsed()">
+          <button class="now-btn" onclick="setNow('arrivalTime')">今</button>
+        </div>
+      </div>
+    </div>
+    <div class="elapsed-bar" id="elapsedBar"></div>
+
+    <button class="btn btn-accent btn-full" id="btnGen2" onclick="genPrompt2()">
+      📋 プロンプト②を生成（中毒解析用）
+    </button>
+    <div class="out-box" id="out2" style="display:none;margin-top:0.6rem;"></div>
+    <div style="display:flex;gap:0.5rem;margin-top:0;" id="act2" style="display:none">
+      <button class="btn btn-ok btn-sm" onclick="copy('out2','ck2')">📋 コピー</button>
+    </div>
+    <div class="copy-done" id="ck2">✓ コピーしました — 解析には各AIの最上位モデルを推奨します</div>
+  </div>
+</div>
+
+<script>
+let photos = [];
+let drugs  = []; // {name, qty, uncertain}
+let drumHundreds = 0, drumTens = 5, drumOnes = 0; // default 050kg
+
+// ── Drum picker ──────────────────────────────────────────────────
+const ITEM_H = 44;
+const drumMax = { hundreds: 2, tens: 9, ones: 9 };
+const drumIds = { hundreds: 'drumHundreds', tens: 'drumTens', ones: 'drumOnes' };
+
+function initDrum() {
+  document.getElementById('drumHundreds').scrollTop = drumHundreds * ITEM_H;
+  document.getElementById('drumTens').scrollTop     = drumTens     * ITEM_H;
+  document.getElementById('drumOnes').scrollTop     = drumOnes     * ITEM_H;
+  updateDrumDisplay();
+}
+
+let drumTimer = {};
+function onDrumScroll(col) {
+  clearTimeout(drumTimer[col]);
+  drumTimer[col] = setTimeout(() => {
+    const el = document.getElementById(drumIds[col]);
+    const idx = Math.round(el.scrollTop / ITEM_H);
+    const clamped = Math.max(0, Math.min(drumMax[col], idx));
+    el.scrollTop = clamped * ITEM_H;
+    if (col === 'hundreds') drumHundreds = clamped;
+    else if (col === 'tens') drumTens = clamped;
+    else drumOnes = clamped;
+    updateDrumDisplay();
+  }, 80);
+}
+
+function updateDrumDisplay() {
+  document.getElementById('drumDisplay').textContent = `= ${getWeight()} kg`;
+}
+
+function getWeight() { return drumHundreds * 100 + drumTens * 10 + drumOnes; }
+
+// ── Time helpers ─────────────────────────────────────────────────
+function padZ(n) { return String(n).padStart(2,'0'); }
+
+function setNow(id) {
+  const d = new Date();
+  const s = `${d.getFullYear()}-${padZ(d.getMonth()+1)}-${padZ(d.getDate())}T${padZ(d.getHours())}:${padZ(d.getMinutes())}`;
+  document.getElementById(id).value = s;
+  updateElapsed();
+}
+
+function updateElapsed() {
+  const t1 = document.getElementById('ingestTime').value;
+  const t2 = document.getElementById('arrivalTime').value;
+  const bar = document.getElementById('elapsedBar');
+  if (!t1 || !t2) { bar.style.display = 'none'; return; }
+  const diff = Math.round((new Date(t2) - new Date(t1)) / 60000);
+  if (diff <= 0) { bar.style.display = 'none'; return; }
+  const h = Math.floor(diff / 60), m = diff % 60;
+  bar.textContent = `⏱ 内服から病着まで ${h > 0 ? h+'時間' : ''}${m}分経過`;
+  bar.style.display = 'block';
+}
+
+function fmtDt(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${padZ(d.getHours())}:${padZ(d.getMinutes())}`;
+}
+
+function getElapsedText() {
+  const t1 = document.getElementById('ingestTime').value;
+  const t2 = document.getElementById('arrivalTime').value;
+  if (!t1 && !t2) return null;
+  const lines = [];
+  if (t1) lines.push(`内服日時: ${fmtDt(t1)}`);
+  if (t2) lines.push(`病着日時: ${fmtDt(t2)}`);
+  if (t1 && t2) {
+    const diff = Math.round((new Date(t2) - new Date(t1)) / 60000);
+    if (diff > 0) {
+      const h = Math.floor(diff/60), m = diff%60;
+      lines.push(`内服から病着まで: ${h>0?h+'時間':''}${m}分経過`);
+    }
+  }
+  return lines.join('\n');
+}
+
+// ── Photos ──────────────────────────────────────────────────────
+function addPhotos(input) {
+  Array.from(input.files).forEach(f => {
+    const r = new FileReader();
+    r.onload = e => { photos.push(e.target.result); renderGrid(); };
+    r.readAsDataURL(f);
+  });
+  input.value = '';
+}
+
+function removePhoto(i) { photos.splice(i,1); renderGrid(); }
+
+function renderAttachPanel() {
+  const panel = document.getElementById('attachPanel');
+  const grid  = document.getElementById('attachGrid');
+  if (photos.length === 0) { panel.classList.remove('show'); return; }
+  grid.innerHTML = photos.map((src, i) => {
+    // dataURLをBlobに変換してダウンロードリンクを生成
+    const ext = src.startsWith('data:image/png') ? 'png' : 'jpg';
+    return `
+      <div class="attach-item">
+        <img src="${src}" draggable="true" title="ドラッグしてAIチャットへ">
+        <a href="${src}" download="drug_photo_${i+1}.${ext}">↓ ダウンロード</a>
+      </div>`;
+  }).join('');
+  panel.classList.add('show');
+}
+
+function renderGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = photos.map((src,i) => `
+    <div class="thumb">
+      <img src="${src}">
+      <button class="del" onclick="removePhoto(${i})">✕</button>
+    </div>
+  `).join('') + `
+    <label class="add-btn">
+      <input type="file" accept="image/*" multiple onchange="addPhotos(this)">
+      <span>＋</span><span>写真追加</span>
+    </label>`;
+}
+
+// ── Prompt 1 ─────────────────────────────────────────────────────
+function genPrompt1() {
+  const n = photos.length;
+  const p = `【依頼】
+添付した写真${n > 0 ? '（' + n + '枚）' : ''}から患者が内服した可能性のある薬剤をすべて同定し、以下の厳密な書式で列挙してください。
+写真はPTP包装・薬袋・錠剤現物・お薬手帳・市販薬の成分表など複数種類が混在する場合があります。
+
+【出力形式 — 厳守】
+・1薬剤（または1製品）につき必ず1行で記載する（絶対に複数行にまたがらないこと）
+・各行の書式：番号. 商品名（成分・規格）剤形
+
+・医療用単成分薬の例：
+1. パキシル錠（パロキセチン）20mg 錠剤
+2. ワイパックス錠（ロラゼパム）1mg 錠剤
+3. カロナール錠（アセトアミノフェン）500mg 錠剤
+
+・市販薬・複合成分製品の例（成分表・パッケージから読む場合）：
+4. パブロンゴールドA錠（アセトアミノフェン300mg・グアイフェネシン200mg・dl-メチルエフェドリン塩酸塩20mg・無水カフェイン25mg / 1錠あたり）複合錠剤
+5. ブロン錠（ジヒドロコデインリン酸塩・dl-メチルエフェドリン塩酸塩・クロルフェニラミンマレイン酸塩・無水カフェイン / 規格不明）複合錠剤
+
+・お薬手帳から読む場合の例：
+6. アムロジピン錠（アムロジピンベシル酸塩）5mg 錠剤
+
+【画像種別ごとの抽出ルール】
+■ PTP包装・薬袋・錠剤現物
+  ・PTPシートの文字、薬袋の印字、錠剤の刻印・マークをすべて活用して同定する
+
+■ お薬手帳
+  ・処方薬リストに記載された薬剤名・規格を1行ずつ抽出する
+  ・処方日・医療機関名は不要。薬剤名と規格のみ記載する
+
+■ 市販薬の成分表・パッケージ
+  ・製品名（商品名）を1行の先頭に置き、括弧内に1錠（または1包・1カプセル）あたりの全有効成分と含有量を記載する
+  ・複数の有効成分は「・」で区切って1行にまとめる（絶対に複数行に分けない）
+  ・添加物は不要。有効成分のみ記載する
+
+【共通ルール】
+・商品名が不明な場合は一般名のみ記載（括弧省略可）
+・規格・含有量が不明な場合は「規格不明」と記載
+・識別に迷う場合は「候補A / 候補B（要確認）」と1行に収めて記載
+・写真・手帳・成分表に示されたすべての薬剤を漏らさず列挙する
+・説明文・見出し・注釈は一切不要。番号付きリストのみ返すこと
+
+【重要 — 後続処理について】
+この回答は自動パーサーで処理され、1行 = 1薬剤として抽出されます。
+抽出された薬剤名・規格はそのまま次の中毒解析プロンプト（②）に組み込まれます。
+書式が崩れると薬剤の同定ミスや解析精度の低下に直結するため、書式の厳守が必須です。
+「（要確認）」フラグは②にも引き継がれ、解析時に不確かさとして明示されます。`;
+
+  show('out1', p);
+  document.getElementById('act1').style.display = 'flex';
+  document.getElementById('num1').classList.add('done');
+  renderAttachPanel();
+}
+
+// ── Parse pasted AI response ──────────────────────────────────────
+function parseDrugs() {
+  const text = document.getElementById('pasteArea').value.trim();
+  if (!text) return;
+
+  // Split by newlines, extract non-empty lines that look like drug entries
+  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 2);
+
+  const parsed = [];
+  lines.forEach(line => {
+    // Remove leading list markers: 1. 1） ・ - • ※ など
+    let name = line.replace(/^[\d]+[\.．\)）\]】:：\s]+/, '')
+                   .replace(/^[・\-•※▶▷◆◇\*]+\s*/, '')
+                   .trim();
+    // Skip lines that look like headers or instructions
+    if (name.length < 2 || name.length > 100) return;
+    if (/^(注意|以下|添付|依頼|写真|番号|出力|識別|この|上記|重要|後続|書式|抽出|回答|説明|─|━)/.test(name)) return;
+    if (parsed.find(d => d.name === name)) return; // dedup
+    // 「要確認」フラグを検出して引き継ぐ
+    const uncertain = /要確認/.test(name);
+    parsed.push({ name, qty: '', uncertain });
+  });
+
+  if (parsed.length === 0) {
+    alert('薬剤を抽出できませんでした。テキストの形式を確認してください。');
+    return;
+  }
+
+  drugs = parsed;
+  renderDrugs();
+  document.getElementById('drugSection').style.display = 'block';
+  document.getElementById('num2').classList.add('done');
+}
+
+function renderDrugs() {
+  document.getElementById('drugList').innerHTML = drugs.map((d, i) => `
+    <div class="drug-row" style="${d.uncertain ? 'border-color:#e3b341;' : ''}">
+      <div class="drug-name-text">
+        ${esc(d.name)}
+        ${d.uncertain ? '<span class="tag" style="background:rgba(227,179,65,0.15);color:#e3b341;">要確認</span>' : ''}
+      </div>
+      <input class="qty-input" type="number" min="0" step="0.5"
+        inputmode="numeric" pattern="[0-9]*"
+        placeholder="?" value="${esc(d.qty)}"
+        id="qty-${i}"
+        oninput="drugs[${i}].qty=this.value"
+        onkeydown="qtyEnter(event,${i})">
+      <span class="qty-label">錠</span>
+      <button class="drug-del" onclick="removeDrug(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeDrug(i) { drugs.splice(i,1); renderDrugs(); }
+
+function qtyEnter(e, i) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const next = document.getElementById('qty-' + (i + 1));
+  if (next) next.focus();
+}
+
+function addManual() {
+  const inp = document.getElementById('manualName');
+  const n = inp.value.trim();
+  if (!n) return;
+  drugs.push({ name: n, qty: '' });
+  renderDrugs();
+  inp.value = '';
+  document.getElementById('drugSection').style.display = 'block';
+}
+
+
+
+// 薬剤名テキストから規格(mg等)を抽出してmg/kgを計算する
+function calcMgPerKg(drugName, qty, weight) {
+  if (!qty || !weight) return null;
+  const m = drugName.match(/(\d+(?:\.\d+)?)\s*(mg|g|mcg|μg|µg)/i);
+  if (!m) return null;
+  let strength = parseFloat(m[1]);
+  const unit = m[2].toLowerCase();
+  if (unit === 'g') strength *= 1000;
+  if (unit === 'mcg' || unit === 'μg' || unit === 'µg') strength /= 1000;
+  const totalMg = strength * parseFloat(qty);
+  const mgkg = totalMg / weight;
+  return { totalMg, mgkg, strength, unit: 'mg' };
+}
+
+// ── Prompt 2 ─────────────────────────────────────────────────────
+function genPrompt2() {
+  if (drugs.length === 0) {
+    alert('薬剤リストが空です。ステップ2で薬剤を抽出または手動追加してください。');
+    return;
+  }
+
+  const weight = getWeight() || 50;
+  const confirmed = drugs.filter(d => !d.uncertain);
+  const uncertain = drugs.filter(d => d.uncertain);
+
+  function formatDrug(d, prefix) {
+    const qty = d.qty ? `${d.qty}錠` : '錠数不明';
+    const calc = d.qty ? calcMgPerKg(d.name, d.qty, weight) : null;
+    let line = `${prefix} ${d.name}　→　内服量: ${qty}`;
+    if (calc) {
+      line += `　（総量: ${calc.totalMg.toFixed(1)}mg）`;
+      line += `\n   ※ 体重${weight}kg換算: ${calc.mgkg.toFixed(2)}mg/kg → 該当毒性域を解析で明示すること`;
+    } else {
+      line += `\n   ※ 規格または錠数が不明のため mg/kg 算出不可 → 可能な範囲で毒性域を推定すること`;
+    }
+    return line;
+  }
+
+  const medList = confirmed.map((d, i) => formatDrug(d, `${i+1}.`)).join('\n');
+
+  const uncertainList = uncertain.length > 0
+    ? '\n【同定が不確かな薬剤 — 要確認】\n' +
+      uncertain.map((d, i) => formatDrug(d, `△${i+1}.`)).join('\n')
+    : '';
+
+  const p = `【急性薬物中毒 — 中毒解析依頼】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+傷病者体重: ${weight} kg（mg/kg換算はこの値を使用）
+${getElapsedText() ? getElapsedText() : '内服日時・病着日時: 不明'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【情報の出所と信頼性】
+このプロンプトは3ステップで生成されています：
+STEP1: 患者が内服した薬剤の写真を添付してAI（あなた）に薬剤同定を依頼した
+STEP2: その回答から薬剤名・規格を自動抽出し、患者・家族への問診で錠数を補完した
+STEP3: 上記を統合してこの解析プロンプトを生成した
+
+→ 薬剤名はAIによる画像認識結果です。「要確認」マークの薬剤は同定に迷いがあります。
+→ 解析前に薬剤名・規格の妥当性を確認し、明らかな誤りがあれば補正してから解析してください。
+→ 写真を同時に添付している場合は、そちらも照合して薬剤名の最終確認に使ってください。
+
+【内服薬剤リスト（同定確認済み）】
+${medList || '（なし）'}
+${uncertainList}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+上記の内服薬剤について、薬剤ごとに以下の項目をすべて解析してください。
+「要確認」薬剤は複数候補の可能性を考慮しながら解析し、解釈の幅を明示してください。
+
+【回答の品質基準 — 必ず守ること】
+① 各推奨事項の末尾に [エビデンス: 高/中/低/専門家意見] を付記する
+② エビデンスが乏しい・ガイドラインが存在しない領域は積極的に「エビデンス不足」と明示する
+③ タイムクリティカルな処置は「内服後○時間以内」と数値で明記する
+④ 薬物代謝（CYP）はアイソフォーム型・阻害/誘導の方向・日本人集団における多型頻度まで記述する
+⑤ 用いる中毒基準・nomogramは正式名称（Rumack-Matthew、Prescott等）で明示する
+⑥ 不確実性は推測ではなく「現時点では不明」と記す
+
+─── A. 各薬剤の個別評価 ────────────────────
+各薬剤について：
+
+1. 薬効分類・作用機序
+2. 摂取量の毒性評価
+   ・通常治療量（常用量）
+   ・中毒量の目安（mg/kg）と根拠（使用したガイドライン・nomogramを明示）
+   ・致死推定量（参考値・文献ベース）
+   ・今回の摂取量（mg/kg換算）と毒性ラインの比較・危険度判定
+3. 中毒症状（toxidrome）
+   ・早期症状（内服後〜2時間）
+   ・中期症状（2〜12時間）
+   ・遅発性毒性・臓器障害（12時間以降）
+4. 薬物動態
+   ・Tmax（血中濃度ピーク到達時間）
+   ・半減期（T1/2）
+   ・代謝経路：CYPアイソフォーム名・主要代謝産物・活性代謝物の毒性
+   ・薬物代謝に影響する遺伝的多型（PM/UM）と日本人での頻度（%）
+   ・タンパク結合率・分布容積
+5. 解毒薬・拮抗薬
+   ・存在する場合：名称・投与量・投与タイミング・開始期限
+   ・存在しない場合：「なし（支持療法）」と明記
+6. GI除染の適否
+   ・活性炭の有効性・多回投与の要否・有効な時間窓
+   ・胃洗浄の適応
+7. 体外循環（透析・血液灌流）の適応
+   ・適応となる血中濃度閾値・臨床指標があれば明記
+
+─── B. 複数薬剤の相互作用評価 ──────────────
+・薬物間相互作用（全ての組み合わせについて機序を説明）
+・相加・相乗毒性の有無（CNS抑制・心毒性・肝毒性・各系統ごと）
+・特に危険な組み合わせは ⚠️ マークで強調し理由を明記
+・QT/QRS延長リスクの重複評価
+・相互作用のエビデンスレベルを各組み合わせに付記
+
+─── C. 優先度別の対応方針 ──────────────────
+・緊急度ランキング（1位〜）：各処置の実施期限を「内服後○時間以内」で数値明記
+・モニタリング必須項目（採血項目名・心電図所見・意識レベル指標）と実施タイミング
+・ICU管理の必要性の判断基準（具体的な数値基準があれば明示）
+・「エビデンスはないが臨床的に推奨される対応」は明示的に分けて記載する
+
+─── D. 診療録記載サマリー（薬物毒性）─────────────
+治療方針・処置指示・モニタリング推奨は含めない。
+薬物学的事実と毒性評価のみを以下の形式で出力してください。
+
+【急性薬物中毒 — 薬物毒性評価】
+
+▷ 推定摂取薬物（各薬剤1行）：
+  （薬剤名 規格 × 錠数 = 総量mg ／ mg/kg　毒性域との比較：超過 or 境界 or 以下）
+
+▷ 毒性分類（Toxidrome）：
+  （該当するtoxidrome名と根拠となる薬剤・機序）
+
+▷ 標的臓器別 毒性リスク：
+  肝臓　：（薬剤名・機序・推定リスク）
+  心臓　：（QRS延長・QT延長・不整脈リスクの根拠薬剤）
+  CNS/呼吸：（抑制・興奮・けいれんリスクの根拠薬剤）
+  腎臓　：（リスクがあれば根拠薬剤、なければ「特記なし」）
+  その他：（必要があれば記載）
+
+▷ 薬物動態上の特記事項：
+  （吸収遅延・活性代謝物・CYP相互作用など毒性の時間経過に影響する因子のみ）
+
+▷ 総合毒性評価：（致命的 ／ 重症 ／ 中等症 ／ 軽症）
+  最大リスク：（最も危険な薬剤名と機序を1文で）
+  複合毒性　：（相加・相乗毒性があれば組み合わせを明示、なければ「特記なし」）
+
+━━━━━━━━━━━━━━━━━━━━━━━
+※ 不確かな情報は「要確認」と明示してください。
+※ 日本語で回答してください。`;
+
+  show('out2', p);
+  document.getElementById('act2').style.display = 'flex';
+  document.getElementById('num3').classList.add('done');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+function show(id, text) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display = 'block';
+  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function copy(boxId, doneId) {
+  const text = document.getElementById(boxId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById(doneId);
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2500);
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+window.addEventListener('load', () => {
+  initDrum();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+});
+</script>
+</body>
+</html>
