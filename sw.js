@@ -1,11 +1,11 @@
-const CACHE = 'tox-prompt-v1';
+const CACHE = 'tox-prompt-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png'
+  '/tox-prompt-builder/',
+  '/tox-prompt-builder/index.html',
+  '/tox-prompt-builder/manifest.json',
+  '/tox-prompt-builder/icon-192.png',
+  '/tox-prompt-builder/icon-512.png',
+  '/tox-prompt-builder/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', e => {
