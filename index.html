@@ -4,13 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>急性中毒プロンプトビルダー</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#5b7fe8">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="中毒ビルダー">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 :root {
@@ -67,34 +60,6 @@ h1 { font-size: 1.1rem; color: var(--accent); margin-bottom: 0.2rem; }
   margin-bottom: 1.25rem;
 }
 
-/* Photos */
-.photos-grid {
-  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem;
-}
-.thumb {
-  width: 90px; height: 68px; border-radius: 7px; overflow: hidden;
-  position: relative; border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb .del {
-  position: absolute; top: 3px; right: 3px;
-  background: rgba(0,0,0,0.72); border: none; border-radius: 50%;
-  color: #fff; width: 18px; height: 18px; font-size: 0.65rem;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
-.add-btn {
-  width: 90px; height: 68px; border-radius: 7px;
-  border: 2px dashed var(--border);
-  background: var(--surface2);
-  color: var(--muted); font-size: 1.4rem;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer; position: relative; transition: border-color 0.15s;
-  gap: 2px;
-}
-.add-btn span { font-size: 0.65rem; }
-.add-btn:hover { border-color: var(--accent); }
-.add-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
 /* Buttons */
 .btn {
@@ -271,39 +236,6 @@ textarea.paste-area:focus { border-color: var(--accent); }
 .suggest-chip:hover { background: rgba(227,179,65,0.35); }
 .suggest-label { font-size: 0.7rem; color: var(--muted); }
 
-/* Photo attach panel */
-.attach-panel {
-  display: none;
-  margin-top: 0.85rem;
-  background: #fffbea;
-  border: 2px solid #f0c040;
-  border-radius: 10px;
-  padding: 0.9rem;
-}
-.attach-panel.show { display: block; }
-.attach-title {
-  font-size: 0.82rem; font-weight: 700; color: #8a6200; margin-bottom: 0.6rem;
-}
-.attach-grid {
-  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem;
-}
-.attach-item {
-  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-}
-.attach-item img {
-  width: 110px; height: 82px; object-fit: cover;
-  border-radius: 7px; border: 1px solid #e0c060;
-  cursor: grab;
-}
-.attach-item img:active { cursor: grabbing; opacity: 0.85; }
-.attach-item a {
-  font-size: 0.7rem; color: var(--accent); text-decoration: none;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 4px; padding: 0.15rem 0.45rem;
-}
-.attach-note {
-  font-size: 0.78rem; color: #8a6200; line-height: 1.5;
-}
 </style>
 </head>
 <body>
@@ -319,39 +251,18 @@ textarea.paste-area:focus { border-color: var(--accent); }
 
   <!-- ══ STEP 1 ══ -->
   <div class="step-head">
-    <div class="step-num" id="num1">1</div>
+    <div class="step-num done" id="num1">1</div>
     <div>
-      <div class="step-title">写真をアップロード → プロンプト① を生成</div>
-      <div class="step-desc">薬剤写真・お薬手帳・市販薬成分表など複数枚追加可。AIチャットに貼り付け + 写真を添付して送信。</div>
+      <div class="step-title">プロンプト① をコピー → AIに写真と一緒に送信</div>
+      <div class="step-desc">AIチャットに薬剤写真・お薬手帳・成分表などを添付し、下のプロンプトを貼り付けて送信してください。</div>
     </div>
   </div>
   <div class="card">
-    <div class="photos-grid" id="grid">
-      <label class="add-btn">
-        <input type="file" accept="image/*" multiple onchange="addPhotos(this)">
-        <span>＋</span><span>写真追加</span>
-      </label>
-    </div>
-
-    <button class="btn btn-accent btn-full" onclick="genPrompt1()">
-      📋 プロンプト①を生成（薬剤名列挙用）
-    </button>
-    <div class="out-box" id="out1" style="display:none;margin-top:0.6rem;"></div>
-    <div style="display:flex;gap:0.5rem;margin-top:0.5rem;" id="act1" style="display:none">
-      <button class="btn btn-ok btn-sm" onclick="copy('out1','ck1')">📋 プロンプトをコピー</button>
+    <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+      <button class="btn btn-ok btn-sm" onclick="copy('out1','ck1')">📋 プロンプト①をコピー</button>
     </div>
     <div class="copy-done" id="ck1">コピーしました</div>
-
-    <!-- 写真添付リマインダー -->
-    <div class="attach-panel" id="attachPanel">
-      <div class="attach-title">⚠️ 写真は自動でコピーされません — 以下の写真をAIチャットに添付してください</div>
-      <div class="attach-grid" id="attachGrid"></div>
-      <div class="attach-note">
-        📌 <strong>PC:</strong> 画像をドラッグしてAIチャットのテキスト入力欄に直接ドロップ<br>
-        📌 <strong>スマホ:</strong> 「↓ダウンロード」で保存 → AIチャットの添付ボタンから選択<br>
-        📌 プロンプトのテキストと写真をセットで送信してください
-      </div>
-    </div>
+    <div class="out-box" id="out1" style="margin-top:0.4rem;"></div>
   </div>
 
   <!-- ══ STEP 2 ══ -->
@@ -457,7 +368,6 @@ textarea.paste-area:focus { border-color: var(--accent); }
 </div>
 
 <script>
-let photos = [];
 let drugs  = []; // {name, qty, uncertain}
 let drumHundreds = 0, drumTens = 5, drumOnes = 0; // default 050kg
 
@@ -539,101 +449,35 @@ function getElapsedText() {
   return lines.join('\n');
 }
 
-// ── Photos ──────────────────────────────────────────────────────
-function addPhotos(input) {
-  Array.from(input.files).forEach(f => {
-    const r = new FileReader();
-    r.onload = e => { photos.push(e.target.result); renderGrid(); };
-    r.readAsDataURL(f);
-  });
-  input.value = '';
-}
-
-function removePhoto(i) { photos.splice(i,1); renderGrid(); }
-
-function renderAttachPanel() {
-  const panel = document.getElementById('attachPanel');
-  const grid  = document.getElementById('attachGrid');
-  if (photos.length === 0) { panel.classList.remove('show'); return; }
-  grid.innerHTML = photos.map((src, i) => {
-    // dataURLをBlobに変換してダウンロードリンクを生成
-    const ext = src.startsWith('data:image/png') ? 'png' : 'jpg';
-    return `
-      <div class="attach-item">
-        <img src="${src}" draggable="true" title="ドラッグしてAIチャットへ">
-        <a href="${src}" download="drug_photo_${i+1}.${ext}">↓ ダウンロード</a>
-      </div>`;
-  }).join('');
-  panel.classList.add('show');
-}
-
-function renderGrid() {
-  const g = document.getElementById('grid');
-  g.innerHTML = photos.map((src,i) => `
-    <div class="thumb">
-      <img src="${src}">
-      <button class="del" onclick="removePhoto(${i})">✕</button>
-    </div>
-  `).join('') + `
-    <label class="add-btn">
-      <input type="file" accept="image/*" multiple onchange="addPhotos(this)">
-      <span>＋</span><span>写真追加</span>
-    </label>`;
-}
-
-// ── Prompt 1 ─────────────────────────────────────────────────────
-function genPrompt1() {
-  const n = photos.length;
-  const p = `【依頼】
-添付した写真${n > 0 ? '（' + n + '枚）' : ''}から患者が内服した可能性のある薬剤をすべて同定し、以下の厳密な書式で列挙してください。
-写真はPTP包装・薬袋・錠剤現物・お薬手帳・市販薬の成分表など複数種類が混在する場合があります。
+// ── Prompt 1（固定テキスト） ──────────────────────────────────────
+const PROMPT1 = `【依頼】
+添付した写真（薬剤・PTP包装・薬袋・お薬手帳・市販薬パッケージ・成分表など）に写っている薬剤をすべて同定し、以下の厳密な書式で列挙してください。
 
 【出力形式 — 厳守】
 ・1薬剤（または1製品）につき必ず1行で記載する（絶対に複数行にまたがらないこと）
 ・各行の書式：番号. 商品名（成分・規格）剤形
 
-・医療用単成分薬の例：
+【例】
 1. パキシル錠（パロキセチン）20mg 錠剤
-2. ワイパックス錠（ロラゼパム）1mg 錠剤
-3. カロナール錠（アセトアミノフェン）500mg 錠剤
+2. カロナール錠（アセトアミノフェン）500mg 錠剤
+3. 新ルルA錠s（アセトアミノフェン300mg・マレイン酸クロルフェニラミン7.5mg・ジヒドロコデインリン酸塩8mg・dl-メチルエフェドリン塩酸塩20mg・無水カフェイン25mg / 1錠あたり）複合錠剤
+4. アムロジピン錠（アムロジピンベシル酸塩）5mg 錠剤
 
-・市販薬・複合成分製品の例（成分表・パッケージから読む場合）：
-4. パブロンゴールドA錠（アセトアミノフェン300mg・グアイフェネシン200mg・dl-メチルエフェドリン塩酸塩20mg・無水カフェイン25mg / 1錠あたり）複合錠剤
-5. ブロン錠（ジヒドロコデインリン酸塩・dl-メチルエフェドリン塩酸塩・クロルフェニラミンマレイン酸塩・無水カフェイン / 規格不明）複合錠剤
+【抽出ルール】
+■ PTP包装・薬袋・錠剤現物：PTPシートの文字、薬袋の印字、錠剤の刻印・マークをすべて活用して同定する
+■ お薬手帳：処方薬リストの薬剤名・規格を1行ずつ抽出する（処方日・医療機関名は不要）
+■ 市販薬の成分表・パッケージ：製品名を先頭に、括弧内に1錠（1包・1カプセル）あたりの全有効成分と含有量を「・」区切りで1行にまとめる（添加物は不要）
 
-・お薬手帳から読む場合の例：
-6. アムロジピン錠（アムロジピンベシル酸塩）5mg 錠剤
+・商品名不明 → 一般名のみ（括弧省略可）
+・規格・含有量不明 → 「規格不明」と記載
+・識別に迷う → 「候補A / 候補B（要確認）」と1行に収める
+・説明文・見出し・注釈は不要。番号付きリストのみ返すこと
 
-【画像種別ごとの抽出ルール】
-■ PTP包装・薬袋・錠剤現物
-  ・PTPシートの文字、薬袋の印字、錠剤の刻印・マークをすべて活用して同定する
+【重要】この回答は自動パーサーで処理されます。1行＝1薬剤の書式を厳守してください。
+「（要確認）」フラグはそのまま次の中毒解析プロンプトに引き継がれます。`;
 
-■ お薬手帳
-  ・処方薬リストに記載された薬剤名・規格を1行ずつ抽出する
-  ・処方日・医療機関名は不要。薬剤名と規格のみ記載する
-
-■ 市販薬の成分表・パッケージ
-  ・製品名（商品名）を1行の先頭に置き、括弧内に1錠（または1包・1カプセル）あたりの全有効成分と含有量を記載する
-  ・複数の有効成分は「・」で区切って1行にまとめる（絶対に複数行に分けない）
-  ・添加物は不要。有効成分のみ記載する
-
-【共通ルール】
-・商品名が不明な場合は一般名のみ記載（括弧省略可）
-・規格・含有量が不明な場合は「規格不明」と記載
-・識別に迷う場合は「候補A / 候補B（要確認）」と1行に収めて記載
-・写真・手帳・成分表に示されたすべての薬剤を漏らさず列挙する
-・説明文・見出し・注釈は一切不要。番号付きリストのみ返すこと
-
-【重要 — 後続処理について】
-この回答は自動パーサーで処理され、1行 = 1薬剤として抽出されます。
-抽出された薬剤名・規格はそのまま次の中毒解析プロンプト（②）に組み込まれます。
-書式が崩れると薬剤の同定ミスや解析精度の低下に直結するため、書式の厳守が必須です。
-「（要確認）」フラグは②にも引き継がれ、解析時に不確かさとして明示されます。`;
-
-  show('out1', p);
-  document.getElementById('act1').style.display = 'flex';
-  document.getElementById('num1').classList.add('done');
-  renderAttachPanel();
+function initPrompt1() {
+  show('out1', PROMPT1);
 }
 
 // ── Parse pasted AI response ──────────────────────────────────────
@@ -651,7 +495,7 @@ function parseDrugs() {
                    .replace(/^[・\-•※▶▷◆◇\*]+\s*/, '')
                    .trim();
     // Skip lines that look like headers or instructions
-    if (name.length < 2 || name.length > 100) return;
+    if (name.length < 2 || name.length > 400) return;
     if (/^(注意|以下|添付|依頼|写真|番号|出力|識別|この|上記|重要|後続|書式|抽出|回答|説明|─|━)/.test(name)) return;
     if (parsed.find(d => d.name === name)) return; // dedup
     // 「要確認」フラグを検出して引き継ぐ
@@ -710,7 +554,33 @@ function addManual() {
 
 
 
-// 薬剤名テキストから規格(mg等)を抽出してmg/kgを計算する
+// 複合成分薬かどうか判定（括弧内に「・」で区切られた複数成分がある）
+function isCompound(name) {
+  return /[（(][^）)]*mg[^）)]*[・,、][^）)]*mg[^）)]*[）)]/.test(name) || /複合/.test(name);
+}
+
+// 複合薬の成分を括弧から抽出してmg/kg一覧を返す
+function calcCompoundIngredients(name, qty, weight) {
+  if (!qty || !weight) return null;
+  const m = name.match(/[（(]([^）)]+)[）)]/);
+  if (!m) return null;
+  const inner = m[1].replace(/\/.*$/, '').trim(); // 「/ 1錠あたり」以降を除去
+  const parts = inner.split(/[・,、]/).map(s => s.trim()).filter(Boolean);
+  const results = [];
+  parts.forEach(part => {
+    const mg = part.match(/(\d+(?:\.\d+)?)\s*(mg|g|mcg|μg|µg)/i);
+    if (!mg) { results.push({ label: part, total: null, mgkg: null }); return; }
+    let strength = parseFloat(mg[1]);
+    const unit = mg[2].toLowerCase();
+    if (unit === 'g') strength *= 1000;
+    if (unit === 'mcg' || unit === 'μg' || unit === 'µg') strength /= 1000;
+    const total = strength * parseFloat(qty);
+    results.push({ label: part, total, mgkg: total / weight });
+  });
+  return results;
+}
+
+// 単成分薬のmg/kg計算
 function calcMgPerKg(drugName, qty, weight) {
   if (!qty || !weight) return null;
   const m = drugName.match(/(\d+(?:\.\d+)?)\s*(mg|g|mcg|μg|µg)/i);
@@ -736,14 +606,29 @@ function genPrompt2() {
   const uncertain = drugs.filter(d => d.uncertain);
 
   function formatDrug(d, prefix) {
-    const qty = d.qty ? `${d.qty}錠` : '錠数不明';
-    const calc = d.qty ? calcMgPerKg(d.name, d.qty, weight) : null;
-    let line = `${prefix} ${d.name}　→　内服量: ${qty}`;
-    if (calc) {
-      line += `　（総量: ${calc.totalMg.toFixed(1)}mg）`;
-      line += `\n   ※ 体重${weight}kg換算: ${calc.mgkg.toFixed(2)}mg/kg → 該当毒性域を解析で明示すること`;
+    const qtyStr = d.qty ? `${d.qty}錠` : '錠数不明';
+    let line = `${prefix} ${d.name}　→　内服量: ${qtyStr}`;
+
+    if (isCompound(d.name) && d.qty) {
+      const ingredients = calcCompoundIngredients(d.name, d.qty, weight);
+      if (ingredients && ingredients.length > 0) {
+        line += `\n   ※ 複合製剤 — 成分別 体重${weight}kg換算:`;
+        ingredients.forEach(ing => {
+          if (ing.total !== null) {
+            line += `\n     ${ing.label}: 総量 ${ing.total.toFixed(0)}mg (${ing.mgkg.toFixed(2)}mg/kg) → 毒性域を解析で明示`;
+          } else {
+            line += `\n     ${ing.label}: 含有量不明`;
+          }
+        });
+      }
     } else {
-      line += `\n   ※ 規格または錠数が不明のため mg/kg 算出不可 → 可能な範囲で毒性域を推定すること`;
+      const calc = d.qty ? calcMgPerKg(d.name, d.qty, weight) : null;
+      if (calc) {
+        line += `　（総量: ${calc.totalMg.toFixed(1)}mg）`;
+        line += `\n   ※ 体重${weight}kg換算: ${calc.mgkg.toFixed(2)}mg/kg → 該当毒性域を解析で明示すること`;
+      } else {
+        line += `\n   ※ 規格または錠数が不明のため mg/kg 算出不可 → 可能な範囲で毒性域を推定すること`;
+      }
     }
     return line;
   }
@@ -884,12 +769,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-window.addEventListener('load', () => {
-  initDrum();
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-});
+window.addEventListener('load', () => { initDrum(); initPrompt1(); });
 </script>
 </body>
 </html>
