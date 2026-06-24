@@ -240,7 +240,10 @@ textarea.paste-area:focus { border-color: var(--accent); }
 </head>
 <body>
 <div class="app">
-  <h1>💊 急性中毒プロンプトビルダー</h1>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.2rem;">
+    <h1 style="margin-bottom:0;">💊 急性中毒プロンプトビルダー</h1>
+    <button class="btn btn-ghost btn-sm" onclick="clearCacheAndReload()" style="font-size:0.72rem;padding:0.3rem 0.65rem;">🔄 更新</button>
+  </div>
   <p class="sub">写真 → 薬剤リスト取得 → 錠数入力 → 解析プロンプト生成</p>
 
   <div class="disclaimer">
@@ -767,6 +770,16 @@ function copy(boxId, doneId) {
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function clearCacheAndReload() {
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
+  }
+  const keys = await caches.keys();
+  await Promise.all(keys.map(k => caches.delete(k)));
+  location.reload(true);
 }
 
 window.addEventListener('load', () => { initDrum(); initPrompt1(); });
